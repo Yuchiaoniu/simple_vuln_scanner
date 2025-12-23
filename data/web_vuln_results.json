@@ -1,0 +1,15 @@
+{
+    "sensitive_files": [
+        "robots.txt: Not Found",
+        "admin/: Not Found",
+        "phpinfo.php: Not Found",
+        "config/: Not Found",
+        "backup/: Not Found"
+    ],
+    "error_leak": "Not Found",
+    "sql_injection": "Not Found",
+    "xss": "Not Found",
+    "cookie_security": [
+        "Cookie Security OK"
+    ]
+}

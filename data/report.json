@@ -1,0 +1,42 @@
+{
+    "host_info": {
+        "hostname": "Unknown Hostname",
+        "os_guess": "Windows (IIS)"
+    },
+    "open_ports": [
+        {
+            "port": 80,
+            "service": "Unknown",
+            "version": "Unknown",
+            "status": "Unknown version (cannot parse)"
+        }
+    ],
+    "http_checks": {
+        "status_code": 200,
+        "directory_listing": "未發現目錄列出",
+        "sensitive_headers": {
+            "Server": "Microsoft-IIS/10.0",
+            "X-Powered-By": "缺失",
+            "X-AspNet-Version": "缺失",
+            "X-Frame-Options": "缺失",
+            "Content-Security-Policy": "缺失"
+        },
+        "https_usage": "未使用 HTTPS",
+        "tls_check": "未檢查 (非 HTTPS)"
+    },
+    "web_vuln_tests": {
+        "sensitive_files": [
+            "robots.txt: Not Found",
+            "admin/: Not Found",
+            "phpinfo.php: Not Found",
+            "config/: Not Found",
+            "backup/: Not Found"
+        ],
+        "error_leak": "Not Found",
+        "sql_injection": "Not Found",
+        "xss": "Not Found",
+        "cookie_security": [
+            "Cookie Security OK"
+        ]
+    }
+}
