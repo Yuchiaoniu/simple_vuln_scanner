@@ -1,0 +1,170 @@
+📌 第 4 階段：HTTP 基本檢查（碎片化步驟）
+4.1 發送 GET /
+目的： 嘗試存取網站首頁，取得回應。
+
+方法： 使用 requests.get("http://127.0.0.1:80/") 或 http.client。
+
+輸出： status code、headers、body。
+
+4.2 檢查是否有 directory listing
+判斷： 在回應 body 搜尋 <title>Index of /</title> 或 Index of /。
+
+結果：
+
+存在 → 「可能存在目錄列出漏洞」
+
+不存在 → 「未發現目錄列出」
+
+4.3 檢查敏感 header
+檢查項目：
+
+Server → 是否洩漏版本資訊
+
+X-Powered-By → 是否洩漏框架版本
+
+X-AspNet-Version → 是否洩漏 ASP.NET 版本
+
+X-Frame-Options → 缺失 → 點擊劫持風險
+
+Content-Security-Policy → 缺失 → XSS 風險
+
+結果： 顯示 header 值或「缺失」。
+
+4.4 檢查是否使用 HTTPS
+判斷：
+
+port = 443 或 URL = https → 「已使用 HTTPS」
+
+否則 → 「未使用 HTTPS」
+
+4.5 檢查 TLS 版本（簡化版）
+方法： 使用 ssl 模組建立 socket，讀取協定版本：
+
+import ssl, socket ctx = ssl.create_default_context() with socket.create_connection(("127.0.0.1", 443)) as sock: with ctx.wrap_socket(sock, server_hostname="127.0.0.1") as ssock: print(ssock.version())
+
+輸出： TLSv1.2、TLSv1.3 等。
+
+4.6 判斷是否弱 TLS
+判斷：
+
+TLSv1.0 或 TLSv1.1 → 「弱 TLS」
+
+TLSv1.2 或 TLSv1.3 → 「安全」
+
+
+4.7安裝requests套件
+venv/Scripts/pip install requests
+
+
+
+http_check.py範例
+
+import requests
+import ssl
+import socket
+
+# -------------------------
+# 4.1 發送 GET /
+# -------------------------
+def fetch_http(target_ip, port=80, use_https=False):
+    scheme = "https" if use_https else "http"
+    url = f"{scheme}://{target_ip}:{port}/"
+    try:
+        resp = requests.get(url, timeout=3)
+        return resp
+    except Exception as e:
+        return None
+
+# -------------------------
+# 4.2 檢查 directory listing
+# -------------------------
+def check_directory_listing(body: str) -> str:
+    if "<title>Index of /</title>" in body or "Index of /" in body:
+        return "可能存在目錄列出漏洞"
+    return "未發現目錄列出"
+
+# -------------------------
+# 4.3 檢查敏感 header
+# -------------------------
+def check_sensitive_headers(headers: dict) -> dict:
+    checks = ["Server", "X-Powered-By", "X-AspNet-Version", 
+              "X-Frame-Options", "Content-Security-Policy"]
+    results = {}
+    for h in checks:
+        results[h] = headers.get(h, "缺失")
+    return results
+
+# -------------------------
+# 4.4 + 4.5 + 4.6 檢查 HTTPS 與 TLS
+# -------------------------
+def check_tls(target_ip, port=443):
+    try:
+        ctx = ssl.create_default_context()
+        with socket.create_connection((target_ip, port), timeout=3) as sock:
+            with ctx.wrap_socket(sock, server_hostname=target_ip) as ssock:
+                version = ssock.version()
+                if version in ["TLSv1", "TLSv1.1"]:
+                    return f"{version} → 弱 TLS"
+                else:
+                    return f"{version} → 安全"
+    except Exception:
+        return "TLS 檢查失敗"
+
+# -------------------------
+# 主檢查流程
+# -------------------------
+def http_basic_check(target_ip, port=80, use_https=False):
+    resp = fetch_http(target_ip, port, use_https)
+    if not resp:
+        return {"error": "HTTP 請求失敗"}
+
+    body = resp.text
+    headers = resp.headers
+
+    return {
+        "status_code": resp.status_code,
+        "directory_listing": check_directory_listing(body),
+        "sensitive_headers": check_sensitive_headers(headers),
+        "https_usage": "已使用 HTTPS" if use_https or port == 443 else "未使用 HTTPS",
+        "tls_check": check_tls(target_ip, 443) if use_https or port == 443 else "未檢查 (非 HTTPS)"
+    }
+
+
+
+
+入口程式碼
+scanner.py
+
+from modules import port_scan, banner, version_compare, http_check
+
+# -------------------------
+# 主程式入口
+# -------------------------
+if __name__ == "__main__":
+    target_ip = "127.0.0.1"
+    ports = [22, 80, 443, 3306, 6379]
+    #ssh, http, https, mysql, Redis
+
+    open_ports = port_scan.port_scan(target_ip, ports)
+    print("[+] Open Ports:", open_ports)
+
+    banners = banner.grab_banners(target_ip, open_ports)
+    print("[+] Banners:", banners)
+
+    baseline = version_compare.load_baseline("data/known_versions.json")
+    verdicts = version_compare.evaluate_banners(banners, baseline)
+    for v in verdicts:
+        print(f"- {v.get('port')}/tcp {v.get('service')} {v.get('version')} → {v.get('status')}")
+
+    # 第四階段：HTTP 基本檢查 
+    if 80 in open_ports: 
+        print("[+] HTTP Basic Check:") 
+        result = http_check.http_basic_check(target_ip, 80, use_https=False) 
+        print(result) 
+    if 443 in open_ports: 
+        print("[+] HTTPS Basic Check:") 
+        result = http_check.http_basic_check(target_ip, 443, use_https=True) 
+        print(result)
+#
+#可以使用python -m http.server 80
+#測試有沒有辦法成功掃描正在監聽(對外開放)的port

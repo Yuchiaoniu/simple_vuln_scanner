@@ -1,0 +1,137 @@
+🔹 第 1 階段：安裝必要工具
+1.1 安裝 Python（建議 3.10+）
+• 	到官方網站下載
+• 	務必勾選「Add Python to PATH」
+1.2 安裝 VS Code
+• 	安裝後打開
+• 	安裝以下擴充套件：
+• 	Python
+• 	Pylance
+• 	Code Runner（可選）
+• 	GitLens（版本控制用）
+
+🔹 第 2 階段：建立專案資料夾
+2.1 建立專案根目錄
+
+2.2 在 VS Code 中開啟這個資料夾
+• 	File → Open Folder → 選擇 
+
+🔹 第 3 階段：建立 Python 虛擬環境（venv）
+讓專案依賴不會污染系統環境。
+3.1 建立 venv
+在 VS Code 內建 Terminal 輸入：
+python -m venv venv
+
+
+3.2 啟動 venv
+Windows：
+venv\Scripts\activate
+
+
+Mac/Linux：
+
+3.3 VS Code 會自動偵測 venv
+右下角會跳出「Select Python Interpreter」
+→ 選擇 ./venv/bin/python 或 ./venv/Scripts/python.exe
+
+
+🔹 第 4 階段：安裝必要套件
+我們的弱掃工具初期只需要少量套件：
+4.1 安裝 requests（HTTP 用）
+pip install requests
+
+4.2 安裝 rich（美化輸出，可選）
+pip install rich
+
+4.3 建立 requirements.txt
+pip freeze > requirements.txt
+
+🔹 第 5 階段：建立專案結構
+5.1 建立 modules 資料夾
+simple_vuln_scanner/
+    modules/
+
+
+5.2 建立模組檔案
+modules/
+    port_scan.py
+    banner.py
+    http_check.py
+    version_compare.py
+
+5.3 建立主程式
+scanner.py
+
+
+5.4 建立資料資料夾（版本比對用）
+data/
+    known_versions.json
+
+
+🔹 第 6 階段：設定 VS Code 開發體驗
+6.1 設定 Python 自動格式化
+安裝：
+• 	Black（格式化）
+• 	Flake8（Lint）
+pip install black flake8
+
+
+6.2 在 VS Code 設定自動格式化(點擊視窗任一位置，讓搜尋烈沒有被選取，接著ctrl+shift+p，接著選擇專案版)
+ 加入：
+{
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true
+}
+
+
+6.3 設定 Debugger(點擊左邊直立工具列的debug&run，點擊create a launch.json file>python>python>貼上內容 )
+建立 ：
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Scanner",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scanner.py"
+        }
+    ]
+}
+
+
+🔹 第 7 階段：驗證環境是否正常
+7.1 建立一個簡單測試程式
+在scanner.py寫：
+print("Environment OK")
+
+
+7.2 執行
+python scanner.py
+
+
+如果看到：
+Environment OK
+
+
+代表環境已經完全準備好。
+
+🎯 最終成果
+完成以上步驟後，你會擁有：
+• 	乾淨的 Python 虛擬環境
+• 	完整的 VS Code 開發環境
+• 	模組化的專案架構
+• 	自動格式化與 lint
+• 	可直接開始寫弱掃工具的基礎
+
+
+
+如果在vscode裡面的終端機輸入python指令時，出現找不到python的情形，但是在cmd卻找得到Python的話
+，可以嘗試去Python官網重新下載主程式安裝看看
+
+如果在vscode裡面的powershell發現鍵入指令會出現紅字，代表系統上已停用指令碼執行無法載入的話，可改用cmd
+
+所有的套件都會安裝在venv虛擬機器裡面
+
+要安裝microsoft - python插件
+
+要設定settings.json和debug文件

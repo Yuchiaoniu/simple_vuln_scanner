@@ -1,0 +1,279 @@
+📌 第 5 階段：Web 漏洞基礎測試（碎片化步驟）
+5.1 敏感檔案與路徑檢查
+目的： 嘗試存取常見敏感檔案或目錄，確認是否可直接訪問。
+
+測試路徑：
+
+/robots.txt
+
+/admin/
+
+/phpinfo.php
+
+/config/
+
+/backup/
+
+判斷：
+
+如果回應 200 OK 且包含內容 → 顯示「可能存在敏感檔案/目錄」。
+
+如果回應 404 Not Found → 顯示「未發現」。
+
+5.2 錯誤訊息洩漏測試
+目的： 嘗試觸發伺服器錯誤，觀察是否回傳敏感訊息。
+
+方法：
+
+發送奇怪的 URL，例如 /test' 或 /id=1'.
+
+檢查回應 body 是否包含：
+
+SQL syntax error
+
+Exception
+
+Traceback
+
+判斷：
+
+若出現 → 顯示「可能存在錯誤訊息洩漏」。
+
+若無 → 顯示「未發現」。
+
+
+5.3 簡單 SQL Injection 測試
+目的： 嘗試在 URL 參數中注入簡單 SQL payload。
+
+測試範例：
+
+?id=1' OR '1'='1
+
+判斷：
+
+如果回應異常（例如顯示所有資料或錯誤訊息） → 顯示「可能存在 SQL Injection」。
+
+如果回應正常 → 顯示「未發現」。
+
+
+5.4 簡單 XSS 測試
+目的： 嘗試在 URL 參數中注入簡單 JavaScript。
+
+測試範例：
+
+?q=<script>alert(1)</script>
+
+判斷：
+
+如果回應 body 中反射出 <script>alert(1)</script> → 顯示「可能存在 XSS」。
+
+如果沒有 → 顯示「未發現」。
+
+
+5.5 Cookie 安全性檢查
+目的： 檢查伺服器回應的 Cookie 是否有安全標記。
+
+檢查項目：
+
+HttpOnly → 防止 JavaScript 存取 Cookie。
+
+Secure → 僅在 HTTPS 傳輸。
+
+判斷：
+
+如果缺失 → 顯示「Cookie 安全性不足」。
+
+如果存在 → 顯示「Cookie 安全性良好」。
+
+
+5.6 統整測試結果
+目的： 將以上測試結果整合成一份結構化輸出（字典或表格）。
+
+範例輸出：
+data/web_vuln_results.json
+{
+  "sensitive_files": ["robots.txt: Found", "admin/: Not Found"],
+  "error_leak": "Not Found",
+  "sql_injection": "Not Found",
+  "xss": "Not Found",
+  "cookie_security": "Missing HttpOnly, Missing Secure"
+}
+
+
+🎯 總結
+第五階段的 Web 漏洞基礎測試包含：
+
+敏感檔案與路徑檢查
+
+錯誤訊息洩漏測試
+
+簡單 SQL Injection 測試
+
+簡單 XSS 測試
+
+Cookie 安全性檢查
+
+統整測試結果
+
+
+
+
+
+modules/web_vuln_test.py範例
+
+import requests
+
+# -------------------------
+# 敏感檔案與路徑檢查
+# -------------------------
+def check_sensitive_files(target_ip, port=80, use_https=False):
+    scheme = "https" if use_https else "http"
+    base_url = f"{scheme}://{target_ip}:{port}/"
+    test_paths = ["robots.txt", "admin/", "phpinfo.php", "config/", "backup/"]
+
+    results = []
+    for path in test_paths:
+        url = base_url + path
+        try:
+            resp = requests.get(url, timeout=3)
+            if resp.status_code == 200:
+                results.append(f"{path}: Found")
+            else:
+                results.append(f"{path}: Not Found")
+        except Exception:
+            results.append(f"{path}: Error")
+    return results
+
+# -------------------------
+# 錯誤訊息洩漏測試
+# -------------------------
+def check_error_leak(target_ip, port=80, use_https=False):
+    scheme = "https" if use_https else "http"
+    url = f"{scheme}://{target_ip}:{port}/test'"
+    try:
+        resp = requests.get(url, timeout=3)
+        body = resp.text
+        if any(keyword in body for keyword in ["SQL syntax", "Exception", "Traceback"]):
+            return "Found"
+        return "Not Found"
+    except Exception:
+        return "Error"
+
+# -------------------------
+# 簡單 SQL Injection 測試
+# -------------------------
+def check_sql_injection(target_ip, port=80, use_https=False):
+    scheme = "https" if use_https else "http"
+    url = f"{scheme}://{target_ip}:{port}/?id=1' OR '1'='1"
+    try:
+        resp = requests.get(url, timeout=3)
+        if "error" in resp.text.lower() or "syntax" in resp.text.lower():
+            return "Possible SQL Injection"
+        return "Not Found"
+    except Exception:
+        return "Error"
+
+# -------------------------
+# 簡單 XSS 測試
+# -------------------------
+def check_xss(target_ip, port=80, use_https=False):
+    scheme = "https" if use_https else "http"
+    payload = "<script>alert(1)</script>"
+    url = f"{scheme}://{target_ip}:{port}/?q={payload}"
+    try:
+        resp = requests.get(url, timeout=3)
+        if payload in resp.text:
+            return "Possible XSS"
+        return "Not Found"
+    except Exception:
+        return "Error"
+
+# -------------------------
+# Cookie 安全性檢查
+# -------------------------
+def check_cookie_security(target_ip, port=80, use_https=False):
+    scheme = "https" if use_https else "http"
+    url = f"{scheme}://{target_ip}:{port}/"
+    try:
+        resp = requests.get(url, timeout=3)
+        cookies = resp.cookies
+        results = []
+        for c in cookies:
+            if not c.has_nonstandard_attr("HttpOnly"):
+                results.append("Missing HttpOnly")
+            if use_https and not c.secure:
+                results.append("Missing Secure")
+        return results if results else ["Cookie Security OK"]
+    except Exception:
+        return ["Error"]
+
+# -------------------------
+# 主測試流程
+# -------------------------
+def run_tests(target_ip, port=80, use_https=False):
+    results = {
+        "sensitive_files": check_sensitive_files(target_ip, port, use_https),
+        "error_leak": check_error_leak(target_ip, port, use_https),
+        "sql_injection": check_sql_injection(target_ip, port, use_https),
+        "xss": check_xss(target_ip, port, use_https),
+        "cookie_security": check_cookie_security(target_ip, port, use_https)
+    }
+    return results
+
+
+scanner.py範例
+
+import json
+from modules import port_scan, banner, version_compare, http_check, web_vuln_test
+
+if __name__ == "__main__":
+    target_ip = "127.0.0.1"
+    ports = [22, 80, 443, 3306, 6379]
+
+    open_ports = port_scan.port_scan(target_ip, ports)
+    print("[+] Open Ports:", open_ports)
+
+    banners = banner.grab_banners(target_ip, open_ports)
+    print("[+] Banners:", banners)
+
+    baseline = version_compare.load_baseline("data/known_versions.json")
+    verdicts = version_compare.evaluate_banners(banners, baseline)
+    for v in verdicts:
+        print(f"- {v.get('port')}/tcp {v.get('service')} {v.get('version')} → {v.get('status')}")
+
+    # HTTP 基本檢查 + Web漏洞測試
+    if 80 in open_ports:
+        print("[+] HTTP Basic Check:")
+        result = http_check.http_basic_check(target_ip, 80, use_https=False)
+        print(result)
+
+        print("[+] Web Vulnerability Tests:")
+        vuln_results = web_vuln_test.run_tests(target_ip, 80)
+        print(vuln_results)
+
+        # 輸出到 JSON 檔案
+        with open("data/web_vuln_results.json", "w", encoding="utf-8") as f:
+            json.dump(vuln_results, f, indent=4, ensure_ascii=False)
+
+    if 443 in open_ports:
+        print("[+] HTTPS Basic Check:")
+        result = http_check.http_basic_check(target_ip, 443, use_https=True)
+        print(result)
+
+        print("[+] Web Vulnerability Tests (HTTPS):")
+        vuln_results = web_vuln_test.run_tests(target_ip, 443, use_https=True)
+        print(vuln_results)
+
+        with open("data/web_vuln_results.json", "w", encoding="utf-8") as f:
+            json.dump(vuln_results, f, indent=4, ensure_ascii=False)
+
+
+
+測試方式:
+
+在終端機輸入python進入互動模式
+接著輸入from modules import web_vuln_test引用檔案內容到互動模式環境內
+定義resultresult = web_vuln_test.run_tests("127.0.0.1", 80, use_https=False)
+輸出print(result)
+內容範例
+{'sensitive_files': ['robots.txt: Not Found', 'admin/: Not Found', 'phpinfo.php: Not Found', 'config/: Not Found', 'backup/: Not Found'], 'error_leak': 'Not Found', 'sql_injection': 'Not Found', 'xss': 'Not Found', 'cookie_security': ['Cookie Security OK']}

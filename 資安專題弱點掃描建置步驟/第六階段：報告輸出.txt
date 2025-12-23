@@ -1,0 +1,186 @@
+📌 第六階段：報告輸出（碎片化步驟）
+6.1 統整所有模組結果
+收集以下模組的輸出：
+
+port_scan → 開放的 port 清單
+
+banner → 每個 port 的 banner
+
+version_compare → 判斷版本是否過舊
+
+http_check → HTTP 基本檢查結果
+
+web_vuln_test → Web漏洞基礎測試結果
+
+
+6.2 格式化輸出
+JSON 格式（方便程式處理）：
+
+{
+  "open_ports": [
+    {"port": 22, "service": "OpenSSH", "version": "7.2p1", "status": "Outdated"},
+    {"port": 80, "service": "Apache", "version": "2.4.41", "status": "OK"}
+  ],
+  "http_checks": {
+    "directory_listing": "YES",
+    "https_usage": "NO",
+    "tls_version": "TLS 1.0 (Weak)",
+    "sensitive_headers": ["Server", "X-Powered-By"]
+  },
+  "web_vuln_tests": {
+    "sensitive_files": ["robots.txt: Not Found", "admin/: Not Found"],
+    "error_leak": "Not Found",
+    "sql_injection": "Not Found",
+    "xss": "Not Found",
+    "cookie_security": ["Cookie Security OK"]
+  }
+}
+
+
+表格/文字輸出（方便人類閱讀）：
+
+[+] Open Ports:
+    22/tcp (OpenSSH 7.2p1) - Version outdated
+    80/tcp (Apache 2.4.41)
+
+[+] HTTP Checks:
+    Directory Listing: NO
+    HTTPS: NO
+    TLS Version: TLS 1.0 (Weak)
+    Sensitive Headers: Server, X-Powered-By
+
+[+] Web Vulnerability Tests:
+    Sensitive Files: robots.txt (Not Found), admin/ (Not Found)
+    Error Leak: Not Found
+    SQL Injection: Not Found
+    XSS: Not Found
+    Cookie Security: Cookie Security OK
+
+6.3 支援輸出到檔案（可選）
+可以選擇把結果寫到：
+
+report.json → 機器可讀
+
+report.txt → 人類可讀
+
+範例程式片段：
+
+reports.py
+
+import json
+
+def generate_report(verdicts, result, vuln_results, json_path="data/report.json", txt_path="data/report.txt"):
+    """
+    統整所有模組結果並輸出成 JSON 與 TXT 報告
+    :param verdicts: version_compare 的結果 (list of dict)
+    :param result: http_check 的結果 (dict)
+    :param vuln_results: web_vuln_test 的結果 (dict)
+    :param json_path: JSON 報告輸出路徑
+    :param txt_path: TXT 報告輸出路徑
+    """
+
+    # 統整成一份字典
+    report = {
+        "open_ports": verdicts,
+        "http_checks": result,
+        "web_vuln_tests": vuln_results
+    }
+
+    # 輸出 JSON
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=4, ensure_ascii=False)
+
+    # 輸出文字
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write("[+] Open Ports:\n")
+        for v in verdicts:
+            f.write(f"    {v['port']}/tcp ({v['service']} {v['version']}) - {v['status']}\n")
+
+        f.write("\n[+] HTTP Checks:\n")
+        f.write(f"    Directory Listing: {result['directory_listing']}\n")
+        f.write(f"    HTTPS: {result['https_usage']}\n")
+        f.write(f"    TLS Version: {result['tls_check']}\n")
+        f.write(f"    Sensitive Headers: {', '.join([k for k,v in result['sensitive_headers'].items() if v != '缺失'])}\n")
+
+        f.write("\n[+] Web Vulnerability Tests:\n")
+        f.write(f"    Sensitive Files: {', '.join(vuln_results['sensitive_files'])}\n")
+        f.write(f"    Error Leak: {vuln_results['error_leak']}\n")
+        f.write(f"    SQL Injection: {vuln_results['sql_injection']}\n")
+        f.write(f"    XSS: {vuln_results['xss']}\n")
+        f.write(f"    Cookie Security: {', '.join(vuln_results['cookie_security'])}\n")
+
+    return report
+
+
+
+scanner.py範例
+import requests
+import json
+
+from modules import port_scan, banner, version_compare, http_check, web_vuln_test, report
+
+# -------------------------
+# 主程式入口
+# -------------------------
+if __name__ == "__main__":
+    target_ip = "127.0.0.1"
+    ports = [22, 80, 443, 3306, 6379]
+    #ssh, http, https, mysql, Redis
+
+    open_ports = port_scan.port_scan(target_ip, ports)
+    print("[+] Open Ports:", open_ports)
+
+    banners = banner.grab_banners(target_ip, open_ports)
+    print("[+] Banners:", banners)
+
+    baseline = version_compare.load_baseline("data/known_versions.json")
+    verdicts = version_compare.evaluate_banners(banners, baseline)
+    for v in verdicts:
+        print(f"- {v.get('port')}/tcp {v.get('service')} {v.get('version')} → {v.get('status')}")
+
+    # 第四階段：HTTP 基本檢查 
+    if 80 in open_ports: 
+        print("[+] HTTP Basic Check:") 
+        result = http_check.http_basic_check(target_ip, 80, use_https=False) 
+        print(result) 
+        # 第五階段：Web漏洞基礎測試 
+        print("[+] Web Vulnerability Tests:") 
+        vuln_results = web_vuln_test.run_tests(target_ip, 80) 
+        print(vuln_results)
+
+        # 輸出到 JSON 檔案 
+        with open("data/web_vuln_results.json", "w", encoding="utf-8") as f: 
+            json.dump(vuln_results, f, indent=4, ensure_ascii=False)
+    if 443 in open_ports: 
+        print("[+] HTTPS Basic Check:") 
+        result = http_check.http_basic_check(target_ip, 443, use_https=True) 
+        print(result)
+
+        print("[+] Web Vulnerability Tests (HTTPS):") 
+        vuln_results = web_vuln_test.run_tests(target_ip, 443, use_https=True) 
+        print(vuln_results)
+        with open("data/web_vuln_results.json", "w", encoding="utf-8") as f: 
+            json.dump(vuln_results, f, indent=4, ensure_ascii=False)
+
+
+# ...
+if 80 in open_ports:
+    print("[+] HTTP Basic Check:")
+    result = http_check.http_basic_check(target_ip, 80, use_https=False)
+    print(result)
+
+    print("[+] Web Vulnerability Tests:")
+    vuln_results = web_vuln_test.run_tests(target_ip, 80)
+    print(vuln_results)
+
+    # 第六階段：報告輸出
+    print("[+] Generating Report...")
+    report.generate_report(verdicts, result, vuln_results)
+
+#可以使用python -m http.server 80
+#測試有沒有辦法成功掃描正在監聽(對外開放)的port
+
+
+
+測試
+python scanner.py
