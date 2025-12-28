@@ -1,0 +1,42 @@
+./modules/banner.py
+import socket
+
+# -------------------------
+# 透過sendall函式送出一個原始HTTP請求，b代表將字串轉換為二進位元組，因為網路只傳輸二進位
+# GET / 表示要讀取，HTTP/1.0\r\n\r\n表示使用http最基本的1.0版本，目標伺服器收到/r/n/r/n以後就會開始處理
+# recv(1024)表示接收回傳的前1024個位元組
+# return banner.decode代表將代表接收到的訊息的banner變數轉回文字，並使用.strip修剪掉前後的空白
+# 最後透過grab_banners函式遍歷目標的所有指定port號
+# -------------------------
+def grab_banner(target_ip, port, timeout=1):
+    try:
+        sock = socket.socket()
+        sock.settimeout(timeout)
+        sock.connect((target_ip, port))
+
+        # 特殊處理 HTTP
+        if port in [80, 443]:
+            sock.sendall(b"GET / HTTP/1.0\r\n\r\n")
+
+        banner = sock.recv(1024)
+        return banner.decode(errors="ignore").strip()
+    except Exception:
+        return None
+    finally:
+        sock.close()
+
+def grab_banners(target_ip, open_ports):
+    results = {}
+    for port in open_ports:
+        banner = grab_banner(target_ip, port)
+        if banner:
+            results[port] = banner
+    return results
+
+==================================================================================
+./scanner.py
+if __name__ == "__main__":
+
+# 第二步：Banner Grabbing
+    banners = banner.grab_banners(target_ip, open_ports)
+    print("[+] Banners:", banners)

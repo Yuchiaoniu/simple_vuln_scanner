@@ -1,42 +1,50 @@
 {
     "host_info": {
-        "hostname": "Unknown Hostname",
-        "os_guess": "Windows (IIS)"
+        "hostname": "yuchiao",
+        "os_guess": "Unknown OS"
     },
     "open_ports": [
         {
             "port": 80,
-            "service": "Unknown",
-            "version": "Unknown",
-            "status": "Unknown version (cannot parse)"
+            "service": "Python",
+            "version": "3.14",
+            "baseline": "3.14.2",
+            "status": "Outdated"
+        },
+        {
+            "port": 443,
+            "service": "SimpleHTTP",
+            "version": "0.6",
+            "baseline": "0.6",
+            "status": "OK"
         }
     ],
     "http_checks": {
         "status_code": 200,
         "directory_listing": "未發現目錄列出",
         "sensitive_headers": {
-            "Server": "Microsoft-IIS/10.0",
+            "Server": "SimpleHTTP/0.6 Python/3.14.2, Secure-Gateway",
             "X-Powered-By": "缺失",
             "X-AspNet-Version": "缺失",
-            "X-Frame-Options": "缺失",
-            "Content-Security-Policy": "缺失"
+            "X-Frame-Options": "SAMEORIGIN",
+            "Content-Security-Policy": "default-src 'self'"
         },
-        "https_usage": "未使用 HTTPS",
-        "tls_check": "未檢查 (非 HTTPS)"
+        "https_usage": "已使用 HTTPS",
+        "tls_check": "TLSv1.3 → 安全"
     },
     "web_vuln_tests": {
         "sensitive_files": [
-            "robots.txt: Not Found",
-            "admin/: Not Found",
-            "phpinfo.php: Not Found",
-            "config/: Not Found",
-            "backup/: Not Found"
+            "robots.txt: Error",
+            "admin/: Error",
+            "phpinfo.php: Error",
+            "config/: Error",
+            "backup/: Error"
         ],
-        "error_leak": "Not Found",
-        "sql_injection": "Not Found",
-        "xss": "Not Found",
+        "error_leak": "Error",
+        "sql_injection": "Error",
+        "xss": "Error",
         "cookie_security": [
-            "Cookie Security OK"
+            "Error"
         ]
     }
 }

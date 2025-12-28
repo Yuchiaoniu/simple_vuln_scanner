@@ -1,46 +1,29 @@
-通常弱點掃描不會只掃 22, 80, 443, 3306, 6379
-- 但會掃一大組常見 port（例如 100–500 個）
-例如：
-🔹 Nmap 的預設掃描
-- 掃描 最常見的 1000 個 port（nmap-services）
-🔹 Nessus / OpenVAS
-- 掃描 所有常見服務 port
-- 也會掃一些高風險 port（如 5900、11211、27017）
-🔹 商用弱掃工具
-- 通常掃 1–65535 全部 port
-- 或至少掃 1–1024 + 常見高位 port
+./modules/port_scan.py
 
-但是因為我們只是要做一個最小MVP所以只掃這五個PORT號
+# -------------------------
+# 1.1 決定掃描範圍
+#使用標準函式庫socket，管理網路通訊，使用ThreadPoolExecutor管理多執行緒
+#也就是透過socket這個檔案，對網路進行檔案讀取與儲存的操作
+#這遵循了 Unix 的哲學：「一切皆檔案 (Everything is a file)」。
+#先用set保證輸入唯一性，避免掃描重複port號，然後用sorted由小到大排列自定義了傳入ports變數的get_ports_to_scan
+# -------------------------
 
-
-🔍 1.1 決定掃描範圍（Define Scan Targets）
-1.1.1 決定目標 IP / Host
-- 接受使用者輸入（例如 python scanner.py 192.168.1.10）
-- 或從設定檔讀取
-- 支援 domain → IP 解析（用 socket.gethostbyname()）
+import socket
+from concurrent.futures import ThreadPoolExecutor
 
 def get_ports_to_scan(ports):
-    return sorted(set(ports))
+    return sorted(set(ports)) 
 
-1.1.2 決定 port 範圍
-可以支援三種模式：
-預設常見 port 1–1024（系統服務常見）
-自訂列表 例如 [22, 80, 443, 3306, 6379]
-自訂範圍 例如10000-20000
 
-1.1.3 輸入驗證
-- port 必須在 1–65535
-- 列表不能重複
-- 範圍不能反向（例如 2000–1000）
-
-1.1.4 產生最終掃描列表
-例如：
-	python:
-		ports_to_scan = sorted(set(ports))
-
-🔌 1.2 使用 TCP Connect Scan（socket.connect_ex）
-
-1.2~1.3
+# -------------------------
+# 1.2 + 1.3: TCP Connect Scan
+#使用socket的socket函式傳入
+#socket.AF_INET作為IPv4清單表示要連接的IP種類
+#和socket.SOCK_STREAM作為網路協定格式表示要連線的網路協定TCP
+#接著調用socket內建函式settimeout傳入scan_port的第二個名為timeout且賦值0.5的參數
+# 這樣子傳入TCP/IP格式後，就等同表示定義等待掃描目標port號回應的時間
+# 最後透過socket的connect_ex函式進行連線，並把結果存放在result變數
+# -------------------------
 def scan_port(target_ip, port, timeout=0.5):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(timeout)
@@ -56,47 +39,11 @@ def scan_port(target_ip, port, timeout=0.5):
     finally:
         sock.close()
 
-1.2.1 建立 socket
-	python:
-		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-1.2.2 設定 timeout（下一步會講）
-	python:
-		sock.settimeout(timeout)
-
-1.2.3 嘗試連線
-	python:
-		result = sock.connect_ex((target_ip, port))
-
-1.2.4 判斷結果
-	- 0 → port 開啟
-	- 其他 → port 關閉或被防火牆阻擋
-
-1.2.5 關閉 socket
-	sock.close()
-
-1.3.1 設定合理 timeout
-	- 0.3–1.0 秒都可
-	- 0.5 秒是常見折衷（速度 vs 準確度）
-
-1.3.2 為什麼需要 timeout？
-	- 遇到防火牆 DROP 時，connect_ex 會卡住
-	- timeout 讓掃描速度可控
-
-1.3.3 實作方式
-	python:
-		sock.settimeout(0.5)
-
-1.3.4 錯誤處理
-	- socket.timeout
-	- ConnectionRefusedError
-	- OSError
-
-
-
-
-⚡ 1.4 支援多執行緒（ThreadPoolExecutor）
-
+# -------------------------
+# 1.4: 多執行緒掃描
+# 透過多執行緒ThreadPoolExecutor掃描函式傳入定義好的執行緒數目提高掃描效率
+# -------------------------
 def port_scan(target_ip, ports, threads=100):
     ports_to_scan = get_ports_to_scan(ports)
 
@@ -107,40 +54,18 @@ def port_scan(target_ip, ports, threads=100):
         )
 
     open_ports = [port for port, status in results if status == "open"]
+    
     return open_ports
 
-1.4.1 為什麼需要多執行緒？
-- 單執行緒掃 1–65535 會很慢（>30 秒）
-- ThreadPoolExecutor 可把時間壓到 1–3 秒
 
-1.4.2 決定 thread 數量
-建議：
-- 50 threads：穩定
-- 100 threads：快速
-- 300 threads：可能被 OS 限制
+./scanner.py
 
-1.4.3 建立 ThreadPoolExecutor
-	python:
-		from concurrent.futures import ThreadPoolExecutor
-
-		with ThreadPoolExecutor(max_workers=100) as executor:
-    			results = executor.map(scan_port, ports_to_scan)
-
-1.4.4 scan_port 函式需具備：
-- 建立 socket
-- 設置 timeout
-- connect_ex
-- 回傳結果（開啟 / 關閉）
-
-1.4.5 收集結果
-	python:
-		open_ports = [port for port, status in results if status == "open"]
-
-
-主程式入口
 if __name__ == "__main__":
-    target_ip = "127.0.0.1"
-    ports = [22, 80, 443, 3306, 6379]
 
-    open_ports = port_scan(target_ip, ports)
+# 可以改成實驗室主機 IP，例如 10.1.72.2 / 192.168.131.1 / 192.168.64.1
+    target_ip = "127.0.0.1"
+    ports = [22, 80, 443, 3306, 6379]  # ssh, http, https, mysql, redis
+
+    # 第一步：Port Scan
+    open_ports = port_scan.port_scan(target_ip, ports)
     print("[+] Open Ports:", open_ports)

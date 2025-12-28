@@ -1,19 +1,20 @@
 [+] Host Info:
-    Hostname: Unknown Hostname
-    OS Guess: Windows (IIS)
+    Hostname: yuchiao
+    OS Guess: Unknown OS
 
 [+] Open Ports:
-    80/tcp (Unknown Unknown) - Unknown version (cannot parse)
+    80/tcp (Python 3.14) - Outdated
+    443/tcp (SimpleHTTP 0.6) - OK
 
 [+] HTTP Checks:
     Directory Listing: 未發現目錄列出
-    HTTPS: 未使用 HTTPS
-    TLS Version: 未檢查 (非 HTTPS)
-    Sensitive Headers: Server
+    HTTPS: 已使用 HTTPS
+    TLS Version: TLSv1.3 → 安全
+    Sensitive Headers: Server, X-Frame-Options, Content-Security-Policy
 
 [+] Web Vulnerability Tests:
-    Sensitive Files: robots.txt: Not Found, admin/: Not Found, phpinfo.php: Not Found, config/: Not Found, backup/: Not Found
-    Error Leak: Not Found
-    SQL Injection: Not Found
-    XSS: Not Found
-    Cookie Security: Cookie Security OK
+    Sensitive Files: robots.txt: Error, admin/: Error, phpinfo.php: Error, config/: Error, backup/: Error
+    Error Leak: Error
+    SQL Injection: Error
+    XSS: Error
+    Cookie Security: Error

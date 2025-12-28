@@ -8,7 +8,7 @@ def fetch_http(target_ip, port=80, use_https=False):
     scheme = "https" if use_https else "http" 
     url = f"{scheme}://{target_ip}:{port}/" 
     try: 
-        resp = requests.get(url, timeout=3) 
+        resp = requests.get(url, timeout=3, verify=False)
         return resp 
     except Exception as e: 
         return None 
@@ -22,6 +22,7 @@ def check_directory_listing(body: str) -> str:
     return "未發現目錄列出" 
 # ------------------------- 
 # 4.3 檢查敏感 header 
+# get(h, "缺失")代表找到了就代替h，找不到就回應"缺失"
 # ------------------------- 
 def check_sensitive_headers(headers: dict) -> dict: 
     checks = ["Server", "X-Powered-By", "X-AspNet-Version", 
@@ -36,7 +37,9 @@ def check_sensitive_headers(headers: dict) -> dict:
 # ------------------------- 
 def check_tls(target_ip, port=443): 
     try: 
-        ctx = ssl.create_default_context() 
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
         with socket.create_connection((target_ip, port), timeout=3) as sock:
             with ctx.wrap_socket(sock, server_hostname=target_ip) as ssock: 
                 version = ssock.version() 

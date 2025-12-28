@@ -3,6 +3,8 @@ import re
 from typing import Dict, Optional, Tuple, List
 
 # -------------------------
+# 先載入re，Regular Expression正則表達式
+# 從型別提示函式庫引用字典Dict、列表List、不可變元組Tuple、Optional標記結果等相關套件
 # 3.1 載入 baseline
 # -------------------------
 def load_baseline(path: str = "data/known_versions.json") -> Dict[str, str]:
@@ -15,6 +17,7 @@ def load_baseline(path: str = "data/known_versions.json") -> Dict[str, str]:
 
 # -------------------------
 # 3.2 解析 banner → (service, version)
+# 使用正則表達式的預先編譯re.compile處理版本號，{代表前面的行為最多執行兩次}，並使用re.I表示忽略大小寫
 # -------------------------
 SERVICE_PATTERNS = [
     ("OpenSSH", re.compile(r"OpenSSH[_-]?(\d+(?:\.\d+){0,2})", re.I)),

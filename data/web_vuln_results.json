@@ -1,15 +1,15 @@
 {
     "sensitive_files": [
-        "robots.txt: Not Found",
-        "admin/: Not Found",
-        "phpinfo.php: Not Found",
-        "config/: Not Found",
-        "backup/: Not Found"
+        "robots.txt: Error",
+        "admin/: Error",
+        "phpinfo.php: Error",
+        "config/: Error",
+        "backup/: Error"
     ],
-    "error_leak": "Not Found",
-    "sql_injection": "Not Found",
-    "xss": "Not Found",
+    "error_leak": "Error",
+    "sql_injection": "Error",
+    "xss": "Error",
     "cookie_security": [
-        "Cookie Security OK"
+        "Error"
     ]
 }

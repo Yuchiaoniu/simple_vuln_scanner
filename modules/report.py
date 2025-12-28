@@ -39,5 +39,4 @@ def generate_report(verdicts, result, vuln_results, hostname="Unknown", os_guess
         f.write(f"    SQL Injection: {vuln_results['sql_injection']}\n")
         f.write(f"    XSS: {vuln_results['xss']}\n")
         f.write(f"    Cookie Security: {', '.join(vuln_results['cookie_security'])}\n")
-
     return report
